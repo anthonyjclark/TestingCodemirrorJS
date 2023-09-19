@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CodeMirror JavaScript Test</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraph.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+
+    <!-- <script
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
+      id="MathJax-script"
+      async
+    ></script> -->
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+      }
+      #code,
+      #display {
+        flex-basis: 50%;
+        padding: 10px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div id="code"></div>
+      <div id="display"></div>
+    </div>
+
+    <script async type="module">
+      // "codemirror" bundles several basic extensions from @codemirror
+      // https://www.npmjs.com/package/codemirror?activeTab=code
+      import { basicSetup, EditorView } from "https://esm.sh/codemirror@6.0.1";
+
+      import {
+        javascript,
+        esLint,
+      } from "https://esm.sh/@codemirror/lang-javascript@6.2.1";
+
+      import {
+        linter,
+        lintGutter,
+        diagnosticCount,
+      } from "https://esm.sh/@codemirror/lint@6.4.1";
+
+      import { Linter } from "https://esm.sh/eslint-linter-browserify@8.49.0";
+
+      import { JSXGraph } from "https://esm.sh/jsxgraph@1.6.0";
+
+      import { default as dedent } from "https://esm.sh/dedent@1.5.1";
+
+      function initBoard() {
+        window.board = JSXGraph.initBoard("display", {
+          boundingbox: [-10, 10, 10, -10],
+          axis: true,
+        });
+      }
+
+      function debounce(func, delay) {
+        let timer;
+        return function (...args) {
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            func(...args);
+          }, delay);
+        };
+      }
+
+      // TODO: debounce
+      function update() {
+        // Get code from the editor
+        const code = view.state.doc.toString();
+
+        // TODO: Transform the code (e.g., operator overloading)
+
+        // Evaluate the transformed code
+        if (diagnosticCount(view.state) === 0) {
+          // JSXGraph.freeBoard(window.board);
+          initBoard();
+          board = eval?.(code);
+        }
+      }
+
+      const config = {
+        parserOptions: {
+          ecmaVersion: 2019,
+          sourceType: "module",
+        },
+        env: { browser: true },
+        rules: {
+          semi: ["error", "never"],
+        },
+      };
+
+      // TODO: need space and box for error messages
+      const view = new EditorView({
+        doc: dedent`
+        console.log('hello')
+        let x = 5
+        let y = 5
+        let p = board.create('point', [x, y])
+        `,
+        extensions: [
+          basicSetup,
+          javascript(),
+          lintGutter(),
+          linter(esLint(new Linter(), config)),
+          EditorView.updateListener.of((v) => {
+            if (v.docChanged) {
+              debouncedUpdate();
+            }
+          }),
+        ],
+        parent: document.getElementById("code"),
+      });
+
+      const debouncedUpdate = debounce(update, 1000);
+      initBoard();
+      update();
+    </script>
+  </body>
+</html>
